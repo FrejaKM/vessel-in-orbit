@@ -1,322 +1,261 @@
 <script setup>
-import { ref, nextTick } from 'vue'
-// use this for streaming instead of waiting for the response
-// import { createCompletionsChat } from './stream' 
-import { createCompletionsChat } from './text'
+import { ref } from 'vue';
+import { getAdaptiveResponse } from './text';
+import CircleSlider from './components/CircleSlider.vue';
+import ReflectionPrompt from './components/ReflectionPrompt.vue';
+import wheel2 from '/assets/wheel2.svg'; 
 
-const content = ref('')
-const BTN_TEXT = 'Submit 🚀'
-const res = ref('✅ The answer will be displayed here.')
-const btnText = ref(BTN_TEXT)
+// Data properties
+const angle = ref(0);
+const phase = ref('');
+const subPhase = ref('');
+const BTN_TEXT = 'Submit';
+const res = ref({
+  section1: '',
+  section2: '',
+  section3: '',
+  section4: '',
+});
+const btnText = ref(BTN_TEXT);
+const initialResponse = ref('');
+const hasResponse = ref(false); // Track if the response has been received
 
+const phaseMapping = {
+  winter: 'MENSTRUAL',
+  spring: 'FOLLICULAR',
+  summer: 'OVULATORY',
+  fall: 'LUTEAL',
+};
+
+const updateAngle = (newAngle) => {
+  angle.value = newAngle;
+  [phase.value, subPhase.value] = translateAngleToPhase(newAngle);
+};
+
+const translateAngleToPhase = (angle) => {
+  if (angle >= 0 && angle <= 30) {
+    return ['winter', 'early'];
+  } else if (angle >= 31 && angle <= 65) {
+    return ['winter', 'late'];
+  } else if (angle >= 66 && angle <= 100) {
+    return ['spring', 'early'];
+  } else if (angle >= 101 && angle <= 145) {
+    return ['spring', 'mid'];
+  } else if (angle >= 146 && angle <= 163) {
+    return ['spring', 'late'];
+  } else if (angle >= 164 && angle <= 190) {
+    return ['summer', ''];
+  } else if (angle >= 191 && angle <= 245) {
+    return ['fall', 'early'];
+  } else if (angle >= 246 && angle <= 305) {
+    return ['fall', 'mid'];
+  } else {
+    return ['fall', 'late'];
+  }
+};
+
+// Function to call the API
 const askAi = async () => {
-  btnText.value = `Thinking...🤔`
-  await createCompletionsChat(res, content)
-  btnText.value = BTN_TEXT
-}
+  btnText.value = 'Generating...';
+
+  
+  const response = await getAdaptiveResponse(`${phase.value} ${subPhase.value}`, phase.value, subPhase.value);
+  res.value = response;
+  initialResponse.value = `${res.value.section1} ${res.value.section2} ${res.value.section3} ${res.value.section4}`;
+
+  btnText.value = BTN_TEXT;
+  hasResponse.value = true; 
+};
 </script>
 
 <template>
-  <h2>🤖️ My ChatGPT</h2>
-  <div class="chat">
-    <input class="input" placeholder="Ask me about...🌽" v-model="content" clear />
-    <div class="button-block">
-      <button type="button" @click="askAi" class="btn">
-        <strong>{{ btnText }}</strong>
-        <div id="container-stars">
-          <div id="stars"></div>
+  <div class="center-wrapper">
+    <div class="app-container">
+      <h2>VESSEL IN ORBIT</h2>
+      <h3>SLIDE TO YOUR CYCLE PHASE</h3>
+      <div class="circle-slider-wrapper">
+        <img :src="wheel2" alt="Wheel" class="wheel-svg" />
+        <div class="circle-slider-container">
+          <CircleSlider @update:angle="updateAngle" />
         </div>
-        <div id="glow">
-          <div class="circle"></div>
-          <div class="circle"></div>
-        </div>
-      </button>
-    </div>
-    <div class="card">
-      <pre>{{ res }}</pre>
+        <p class="current-phase">{{ phaseMapping[phase] }}</p> 
+      </div>
+      <div class="button-block"> 
+        <button type="button" @click="askAi" class="btn">
+          {{ btnText }}
+        </button>
+      </div>
+      
+      <div v-if="hasResponse" id="box1" class="section-box">
+        <pre>{{ res.section1 }}</pre> 
+      </div>
+      <div v-if="hasResponse" id="box2" class="section-box">
+        <h4>Insights</h4>
+        <pre>{{ res.section2 }}</pre> 
+      </div>
+      <div v-if="hasResponse" id="box3" class="section-box">
+        <h4>A friendly reminder...</h4>
+        <pre>{{ res.section3 }}</pre> 
+      </div>
+      <div v-if="hasResponse" id="box4" class="section-box">
+        <h4> Today, it might be nice for you to...</h4>
+        <pre>{{ res.section4 }}</pre> 
+      </div>
+
+      <ReflectionPrompt v-if="hasResponse" :initialResponse="initialResponse" id="refelction-prompt" class="section-box"/>
     </div>
   </div>
 </template>
 
 <style scoped>
-h1 {
-  margin-bottom: 64px;
-}
-/* 
-.chat {
-} */
-.input {
-  width: calc(100% - 20px);
-  height: 32px;
-  padding: 12px;
-  border: none;
-  border-radius: 16px;
-  box-shadow: 2px 2px 7px 0 rgb(0, 0, 0, 0.2);
-  outline: none;
-  font-size: 16px;
+@import url('https://fonts.googleapis.com/css2?family=Gantari:wght@400;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  font-size: 1rem;
+  font-family: "Manrope", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
 }
 
-.input:invalid {
-  animation: justshake 0.3s forwards;
-  color: red;
-}
-
-@keyframes justshake {
-  25% {
-    transform: translateX(5px);
-  }
-  50% {
-    transform: translateX(-5px);
-  }
-
-  75% {
-    transform: translateX(5px);
-  }
-
-  100% {
-    transform: translateX-(5px);
-  }
-}
-
-button {
-  cursor: pointer;
-  height: 32px;
-  font-size: 16px;
-  margin-top: 24px;
-  background: royalblue;
-  color: white;
-  padding: 0.7em 1em;
-  padding-left: 0.9em;
+.center-wrapper {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  border: none;
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.2s;
+  height: 100%;
+  overflow: auto; /* Add this line to make the container scrollable */
 }
 
-button span {
-  display: block;
-  margin-left: 0.3em;
-  transition: all 0.3s ease-in-out;
-}
-
-button svg {
-  display: block;
-  transform-origin: center center;
-  transition: transform 0.3s ease-in-out;
-}
-
-.card {
-  background: #07182e;
-  position: relative;
-  display: flex;
-  place-content: center;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 16px;
-  margin: 24px 0;
-}
-
-.card {
-  margin-top: 32px;
-}
-
-.card span,
-.card pre {
-  z-index: 1;
-  color: white;
-  font-size: 16px;
-}
-
-.card::before {
-  content: '';
-  position: absolute;
+.app-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto;
+  gap: 0px;
+  max-width: 520px;
   width: 100%;
-  background-image: linear-gradient(180deg, rgb(0, 183, 255), rgb(255, 48, 255));
-  height: 130%;
-  animation: rotBGimg 3s linear infinite;
-  transition: all 0.2s linear;
+  padding: 2rem; 
+  position: relative; 
 }
 
-.card::after {
-  content: '';
+.circle-slider-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.wheel-svg {
+  width: 275px; 
+  height: 275px; 
+  z-index: 1; 
+  user-select: none;
+}
+
+.circle-slider-container {
   position: absolute;
-  background: #07182e;
-  inset: 5px;
-  border-radius: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  z-index: 2; 
+}
+
+.current-phase {
+  position: absolute;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 1rem;
+  color: #000;
+  z-index: 3; 
 }
 
 .button-block {
   display: flex;
-  align-items: center;
-  justify-content: end;
-}
-.btn {
-  display: flex;
   justify-content: center;
-  align-items: center;
-  min-width: 8rem;
-  max-width: 13rem;
-  height: 3rem;
-  background-size: 300% 300%;
-  backdrop-filter: blur(1rem);
-  border-radius: 5rem;
-  transition: 0.5s;
-  animation: gradient_301 5s ease infinite;
-  border: double 4px transparent;
-  background-image: linear-gradient(#212121, #212121),
-    linear-gradient(137.48deg, #ffdb3b 10%, #fe53bb 45%, #8f51ea 67%, #0044ff 87%);
-  background-origin: border-box;
-  background-clip: content-box, border-box;
+  grid-row-start: 4;
+  grid-row-end: 5;
+  padding-top: 1.5rem;
+  padding-bottom: 3rem;
 }
 
-#container-stars {
-  position: fixed;
-  z-index: -1;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  transition: 0.5s;
-  backdrop-filter: blur(1rem);
-  border-radius: 5rem;
+.btn {
+  padding: 10px 20px;
+  background-color: #ffffff;
+  color: rgb(0, 0, 0);
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1.5px solid black;
+  grid-row-start: 4;
+  grid-row-end: 5;
 }
 
-strong {
-  z-index: 2;
-  font-size: 16px;
-  color: #ffffff;
-  text-shadow: 0 0 4px white;
+button:hover {
+  background-color: #f1f0f0;
 }
 
-#glow {
-  position: absolute;
-  display: flex;
-  width: 12rem;
+h2 {
+  font-size: 2rem;
+  grid-row-start: 1;
+  grid-row-end: 2;
+  text-align: center;
+  margin-bottom: 0px;
+  margin-top: 0px;
+  font-weight: 400;
 }
 
-.circle {
-  width: 100%;
-  height: 30px;
-  filter: blur(2rem);
-  animation: pulse_3011 4s infinite;
-  z-index: -1;
+h3 {
+  font-size: 1rem;
+  grid-row-start: 2;
+  grid-row-end: 3;
+  text-align: center;
 }
 
-.circle:nth-of-type(1) {
-  background: rgba(254, 83, 186, 0.636);
+h4 {
+  font-size: 1.2rem;
+  font-weight: 500;
 }
 
-.circle:nth-of-type(2) {
-  background: rgba(142, 81, 234, 0.704);
+.section-box {
+  border-bottom: 1px solid #ccc;
+  padding-top: 1.5rem;
+  padding-bottom: 2.5rem;
 }
 
-.btn:hover #container-stars {
-  z-index: 1;
-  background-color: #212121;
+
+#box1 {
+  grid-row-start: 5;
+  grid-row-end: 6;
+  text-align: center;
+  border-top: 1px solid #ccc;
+  padding-bottom: 2rem;
 }
 
-.btn:hover {
-  transform: scale(1.1);
+#box2 {
+  grid-row-start: 6;
+  grid-row-end: 7;
+  text-align: left;
 }
 
-.btn:active {
-  border: double 4px #fe53bb;
-  background-origin: border-box;
-  background-clip: content-box, border-box;
-  animation: none;
+#box3 {
+  grid-row-start: 7;
+  grid-row-end: 8;
+  text-align: right;
 }
 
-.btn:active .circle {
-  background: #fe53bb;
+#box4 {
+  grid-row-start: 8;
+  grid-row-end: 9;
+  text-align: left;
 }
 
-#stars {
-  position: relative;
-  background: transparent;
-  width: 200rem;
-  height: 200rem;
+#reflection-prompt {
+  grid-row-start: 9;
+  grid-row-end: 10;
+  text-align: right;
 }
 
-#stars::after {
-  content: '';
-  position: absolute;
-  top: -10rem;
-  left: -100rem;
-  width: 100%;
-  height: 100%;
-  animation: animStarRotate 90s linear infinite;
-}
-
-#stars::after {
-  background-image: radial-gradient(#ffffff 1px, transparent 1%);
-  background-size: 50px 50px;
-}
-
-#stars::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -50%;
-  width: 170%;
-  height: 500%;
-  animation: animStar 60s linear infinite;
-}
-
-#stars::before {
-  background-image: radial-gradient(#ffffff 1px, transparent 1%);
-  background-size: 50px 50px;
-  opacity: 0.5;
-}
-
-@keyframes animStar {
-  from {
-    transform: translateY(0);
-  }
-
-  to {
-    transform: translateY(-135rem);
-  }
-}
-
-@keyframes animStarRotate {
-  from {
-    transform: rotate(360deg);
-  }
-
-  to {
-    transform: rotate(0);
-  }
-}
-
-@keyframes gradient_301 {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes pulse_3011 {
-  0% {
-    transform: scale(0.75);
-    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7);
-  }
-
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
-  }
-
-  100% {
-    transform: scale(0.75);
-    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-  }
+pre {
+  white-space: pre-wrap; /* Ensure long text wraps */
+  word-wrap: break-word; /* Ensure long words break */
 }
 </style>
